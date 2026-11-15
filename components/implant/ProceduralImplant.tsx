@@ -2,12 +2,12 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { HOTSPOTS, HotspotItem } from "./hotspotData";
+import { CrownMaterialId, TreatmentStageId } from "./clinicalData";
 import JawBoneSection from "./JawBoneSection";
 
-function PinButton({
+function PinMarker({
   spot,
   activeId,
   onSelect,
@@ -16,21 +16,31 @@ function PinButton({
   activeId: number | null;
   onSelect: (item: HotspotItem) => void;
 }) {
+  const isSelected = activeId === spot.id;
+
   return (
-    <button
+    <group
+      position={spot.offset}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(spot);
       }}
-      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-lg transition-all cursor-pointer border-2 ${
-        activeId === spot.id
-          ? "bg-amber-500 text-slate-950 border-white scale-125"
-          : "bg-sky-500 hover:bg-sky-400 text-white border-white hover:scale-110"
-      }`}
-      title={spot.title}
     >
-      {spot.id}
-    </button>
+      {/* Dış beyaz halka */}
+      <mesh>
+        <sphereGeometry args={[isSelected ? 0.085 : 0.068, 24, 24]} />
+        <meshStandardMaterial color="#ffffff" roughness={0.2} />
+      </mesh>
+      {/* İç renkli çekirdek */}
+      <mesh>
+        <sphereGeometry args={[isSelected ? 0.065 : 0.052, 24, 24]} />
+        <meshStandardMaterial
+          color={isSelected ? "#f59e0b" : "#0ea5e9"}
+          emissive={isSelected ? "#f59e0b" : "#0284c7"}
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+    </group>
   );
 }
 
@@ -39,15 +49,23 @@ export default function ProceduralImplant({
   activeId,
   isExploded,
   showAnatomy,
+  treatmentStage,
+  crownMaterial,
 }: {
   onSelectHotspot: (item: HotspotItem) => void;
   activeId: number | null;
   isExploded: boolean;
   showAnatomy: boolean;
+  treatmentStage: TreatmentStageId;
+  crownMaterial: CrownMaterialId;
 }) {
   const crownGroupRef = useRef<THREE.Group>(null);
   const abutmentGroupRef = useRef<THREE.Group>(null);
   const screwGroupRef = useRef<THREE.Group>(null);
+  const osseoGlowRef = useRef<THREE.Mesh>(null);
+
+  const hasProsthetics = treatmentStage === 3;
+  const isHealingStage = treatmentStage === 2;
 
   const crownGeometry = useMemo(() => {
     const geo = new THREE.SphereGeometry(0.52, 64, 64);
@@ -104,7 +122,7 @@ export default function ProceduralImplant({
 
   const threadHeights = [-0.2, -0.33, -0.46, -0.59, -0.72, -0.85, -0.98, -1.11, -1.24, -1.37];
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const speed = Math.min(1, delta * 6);
     const targetCrownY = isExploded ? 1.68 : 0.96;
     const targetAbutmentY = isExploded ? 0.18 : -0.04;
@@ -131,7 +149,15 @@ export default function ProceduralImplant({
         speed
       );
     }
+
+    if (osseoGlowRef.current) {
+      const pulse = 0.22 + Math.sin(state.clock.elapsedTime * 3.2) * 0.1;
+      const mat = osseoGlowRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = isHealingStage ? pulse : 0;
+    }
   });
+
+  const isEmax = crownMaterial === "emax";
 
   return (
     <group position={[0, -0.05, 0]}>
@@ -141,37 +167,42 @@ export default function ProceduralImplant({
       <group
         ref={crownGroupRef}
         position={[0, 0.96, 0]}
+        visible={hasProsthetics}
         onClick={(e) => {
+          if (!hasProsthetics) return;
           e.stopPropagation();
           onSelectHotspot(HOTSPOTS[0]);
         }}
       >
         <mesh geometry={crownGeometry} castShadow receiveShadow>
           <meshPhysicalMaterial
-            color={activeId === 1 ? "#fef3c7" : "#f6f1e3"}
-            roughness={0.14}
+            color={activeId === 1 ? "#fef3c7" : isEmax ? "#faf6ee" : "#f2ede2"}
+            roughness={isEmax ? 0.08 : 0.22}
             metalness={0.0}
             clearcoat={1.0}
-            clearcoatRoughness={0.08}
-            reflectivity={0.9}
+            clearcoatRoughness={isEmax ? 0.04 : 0.14}
+            transmission={isEmax ? 0.22 : 0.0}
+            thickness={isEmax ? 0.6 : 0.0}
+            ior={isEmax ? 1.52 : 2.15}
+            reflectivity={isEmax ? 0.95 : 0.78}
             sheen={0.35}
-            sheenRoughness={0.4}
+            sheenRoughness={0.35}
             sheenColor="#fffbeb"
             emissive={activeId === 1 ? "#f59e0b" : "#000000"}
             emissiveIntensity={activeId === 1 ? 0.14 : 0}
           />
         </mesh>
 
-        <Html position={HOTSPOTS[0].offset} center zIndexRange={[100, 0]}>
-          <PinButton spot={HOTSPOTS[0]} activeId={activeId} onSelect={onSelectHotspot} />
-        </Html>
+        <PinMarker spot={HOTSPOTS[0]} activeId={activeId} onSelect={onSelectHotspot} />
       </group>
 
       {/* 2. ABUTMENT */}
       <group
         ref={abutmentGroupRef}
         position={[0, -0.04, 0]}
+        visible={hasProsthetics}
         onClick={(e) => {
+          if (!hasProsthetics) return;
           e.stopPropagation();
           onSelectHotspot(HOTSPOTS[1]);
         }}
@@ -191,9 +222,7 @@ export default function ProceduralImplant({
           <meshStandardMaterial color="#94a3b8" metalness={0.92} roughness={0.22} />
         </mesh>
 
-        <Html position={HOTSPOTS[1].offset} center zIndexRange={[100, 0]}>
-          <PinButton spot={HOTSPOTS[1]} activeId={activeId} onSelect={onSelectHotspot} />
-        </Html>
+        <PinMarker spot={HOTSPOTS[1]} activeId={activeId} onSelect={onSelectHotspot} />
       </group>
 
       {/* 3. İMPLANT GÖVDESİ (VİDA) */}
@@ -205,14 +234,26 @@ export default function ProceduralImplant({
           onSelectHotspot(HOTSPOTS[2]);
         }}
       >
+        <mesh ref={osseoGlowRef} position={[0, -0.85, 0]} visible={isHealingStage}>
+          <cylinderGeometry args={[0.34, 0.22, 1.56, 32]} />
+          <meshStandardMaterial
+            color="#34d399"
+            emissive="#10b981"
+            emissiveIntensity={1.2}
+            transparent
+            opacity={0.25}
+            depthWrite={false}
+          />
+        </mesh>
+
         <mesh position={[0, -0.82, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.24, 0.14, 1.52, 48]} />
           <meshStandardMaterial
             color={activeId === 3 ? "#fcd34d" : "#94a3b8"}
             metalness={0.92}
             roughness={0.26}
-            emissive={activeId === 3 ? "#b45309" : "#000000"}
-            emissiveIntensity={activeId === 3 ? 0.25 : 0}
+            emissive={activeId === 3 ? "#b45309" : isHealingStage ? "#059669" : "#000000"}
+            emissiveIntensity={activeId === 3 ? 0.25 : isHealingStage ? 0.2 : 0}
           />
         </mesh>
 
@@ -248,9 +289,7 @@ export default function ProceduralImplant({
           );
         })}
 
-        <Html position={HOTSPOTS[2].offset} center zIndexRange={[100, 0]}>
-          <PinButton spot={HOTSPOTS[2]} activeId={activeId} onSelect={onSelectHotspot} />
-        </Html>
+        <PinMarker spot={HOTSPOTS[2]} activeId={activeId} onSelect={onSelectHotspot} />
       </group>
     </group>
   );
