@@ -90,15 +90,16 @@ function createAnatomicalToothCrown(scale = 1): THREE.Group {
 
 function createNeighborNaturalTooth(xPos: number, enamelColor = 0xf5f0e6): THREE.Group {
   const group = new THREE.Group();
-  group.position.set(xPos, 0.12, 0);
+  // Ortadaki implant kronuyla milimetrik olarak aynı oklüzal (çiğneme) hizasında
+  group.position.set(xPos, 0.58, 0);
 
-  const crown = createAnatomicalToothCrown(0.92);
+  const crown = createAnatomicalToothCrown(0.96);
   group.add(crown);
 
   const rootPoints = [
-    new THREE.Vector2(0.0, -1.35),
-    new THREE.Vector2(0.11, -1.1),
-    new THREE.Vector2(0.24, -0.55),
+    new THREE.Vector2(0.0, -1.85),
+    new THREE.Vector2(0.11, -1.48),
+    new THREE.Vector2(0.24, -0.78),
     new THREE.Vector2(0.32, 0.02),
   ];
   const rootGeo = new THREE.LatheGeometry(rootPoints, 24);
@@ -184,7 +185,6 @@ export default function ImplantViewer() {
       0.1,
       100
     );
-    // Telefonda daha geniş açıdan bak ki hiçbir uç kesilmesin
     camera.position.set(isMobile ? 3.5 : 2.9, isMobile ? 1.75 : 1.55, isMobile ? 5.1 : 4.1);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -355,8 +355,9 @@ export default function ImplantViewer() {
       }
 
       if (showCrown) {
-        const crown = createAnatomicalToothCrown(0.98);
-        crown.position.y = 0.45 + crownOffset;
+        const crown = createAnatomicalToothCrown(0.96);
+        // baseY (0.16) + 0.42 = 0.58 -> komşu dişlerle birebir aynı hizada
+        crown.position.y = 0.42 + crownOffset;
         crown.traverse((obj) => {
           if ((obj as THREE.Mesh).isMesh) {
             const mat = (obj as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
@@ -775,7 +776,7 @@ export default function ImplantViewer() {
     <div className="flex flex-col lg:flex-row w-full bg-slate-950 text-slate-100 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
       {/* SOL & ORTA PANEL: MOBİLDE DİKEY AKIŞLI, MASAÜSTÜNDE TAM EKRAN 3D SAHNE */}
       <div className="relative flex-1 flex flex-col justify-between bg-gradient-to-b from-slate-900 via-slate-950 to-black lg:min-h-[780px]">
-        {/* Üst Bilgi Kartı: Mobilde üstte ayrı blok (modeli kapatmaz), Masaüstünde üstte yüzen kart */}
+        {/* Üst Bilgi Kartı */}
         <div className="relative lg:absolute lg:top-4 lg:left-4 lg:right-4 z-10 p-3 sm:p-4 lg:p-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/90 lg:bg-transparent border-b border-slate-800 lg:border-b-0 pointer-events-none">
           <div className="bg-slate-900/85 backdrop-blur-md border border-slate-700/70 px-3.5 py-2 rounded-xl pointer-events-auto">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
@@ -806,13 +807,13 @@ export default function ImplantViewer() {
           </div>
         </div>
 
-        {/* 3D Canvas Alanı: Mobilde yazılardan tamamen bağımsız net alan */}
+        {/* 3D Canvas Alanı */}
         <div
           ref={mountRef}
           className="w-full h-[360px] sm:h-[460px] lg:h-[780px] touch-none cursor-grab active:cursor-grabbing"
         />
 
-        {/* Alt Sahne Kontrol Çubuğu: Mobilde altta ayrı blok, Masaüstünde alt yüzen bar */}
+        {/* Alt Sahne Kontrol Çubuğu */}
         <div className="relative lg:absolute lg:bottom-4 lg:left-4 lg:right-4 z-10 p-2.5 sm:p-3 lg:p-2.5 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 bg-slate-900/95 lg:bg-slate-900/85 backdrop-blur-md border-t lg:border border-slate-800 lg:rounded-xl">
           <button
             onClick={() => setShowBone((v) => !v)}
